@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 #ifndef QuickPID_h
 #define QuickPID_h
 
@@ -6,11 +7,11 @@ class QuickPID {
 
   public:
 
-    enum class Control : uint8_t {manual, automatic, timer};        // controller mode
-    enum class Action : uint8_t {direct, reverse};                  // controller action
-    enum class pMode : uint8_t {pOnError, pOnMeas, pOnErrorMeas};   // proportional mode
-    enum class dMode : uint8_t {dOnError, dOnMeas};                 // derivative mode
-    enum class iAwMode : uint8_t {iAwCondition, iAwClamp, iAwOff};  // integral anti-windup mode
+    enum class Control : uint8_t {manual, automatic, timer, toggle};  // controller mode
+    enum class Action : uint8_t {direct, reverse};                    // controller action
+    enum class pMode : uint8_t {pOnError, pOnMeas, pOnErrorMeas};     // proportional mode
+    enum class dMode : uint8_t {dOnError, dOnMeas};                   // derivative mode
+    enum class iAwMode : uint8_t {iAwCondition, iAwClamp, iAwOff};    // integral anti-windup mode
 
     // commonly used functions ************************************************************************************
 
@@ -28,8 +29,9 @@ class QuickPID {
     // Simplified constructor which uses defaults for remaining parameters.
     QuickPID(float *Input, float *Output, float *Setpoint);
 
-    // Sets PID mode to manual (0), automatic (1) or timer (2).
+    // Sets PID mode to manual (0), automatic (1), timer (2) or toggle manual/automatic (3).
     void SetMode(Control Mode);
+    void SetMode(uint8_t Mode);
 
     // Performs the PID calculation. It should be called every time loop() cycles ON/OFF and calculation frequency
     // can be set using SetMode and SetSampleTime respectively.
@@ -50,6 +52,7 @@ class QuickPID {
     // Sets the controller direction or action. Direct means the output will increase when the error is positive.
     // Reverse means the output will decrease when the error is positive.
     void SetControllerDirection(Action Action);
+    void SetControllerDirection(uint8_t Direction);
 
     // Sets the sample time in microseconds with which each PID calculation is performed. Default is 100000 µs.
     void SetSampleTimeUs(uint32_t NewSampleTimeUs);
@@ -57,15 +60,24 @@ class QuickPID {
     // Sets the computation method for the proportional term, to compute based either on error (default),
     // on measurement, or the average of both.
     void SetProportionalMode(pMode pMode);
+    void SetProportionalMode(uint8_t Pmode);
 
     // Sets the computation method for the derivative term, to compute based either on error or measurement (default).
     void SetDerivativeMode(dMode dMode);
+    void SetDerivativeMode(uint8_t Dmode);
 
     // Sets the integral anti-windup mode to one of iAwClamp, which clamps the output after
     // adding integral and proportional (on measurement) terms, or iAwCondition (default), which
     // provides some integral correction, prevents deep saturation and reduces overshoot.
     // Option iAwOff disables anti-windup altogether.
     void SetAntiWindupMode(iAwMode iAwMode);
+    void SetAntiWindupMode(uint8_t IawMode);
+
+    // sets the output summation value
+    void SetOutputSum(float sum);
+
+    void Initialize();        // Ensure a bumpless transfer from manual to automatic mode
+    void Reset();             // Clears pTerm, iTerm, dTerm and outputSum values
 
     // PID Query functions ****************************************************************************************
     float GetKp();            // proportional gain
@@ -74,15 +86,16 @@ class QuickPID {
     float GetPterm();         // proportional component of output
     float GetIterm();         // integral component of output
     float GetDterm();         // derivative component of output
-    uint8_t GetMode();        // manual (0), automatic (1) or timer (2)
+    float GetOutputSum();     // summation of all pid term components
+    uint8_t GetMode();        // manual (0), automatic (1), timer (2) or toggle manual/automatic (3)
     uint8_t GetDirection();   // direct (0), reverse (1)
     uint8_t GetPmode();       // pOnError (0), pOnMeas (1), pOnErrorMeas (2)
     uint8_t GetDmode();       // dOnError (0), dOnMeas (1)
     uint8_t GetAwMode();      // iAwCondition (0, iAwClamp (1), iAwOff (2)
 
-  private:
+    float outputSum;          // Internal integral sum
 
-    void Initialize();
+  private:
 
     float dispKp = 0;   // for defaults and display
     float dispKi = 0;
@@ -106,7 +119,7 @@ class QuickPID {
     iAwMode iawmode = iAwMode::iAwCondition;
 
     uint32_t sampleTimeUs, lastTime;
-    float outputSum, outMin, outMax, error, lastError, lastInput;
+    float outMin, outMax, error, lastError, lastInput;
 
 }; // class QuickPID
 #endif // QuickPID.h

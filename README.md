@@ -1,6 +1,10 @@
 # QuickPID   [![arduino-library-badge](https://www.ardu-badge.com/badge/QuickPID.svg?)](https://www.ardu-badge.com/QuickPID) [![PlatformIO Registry](https://badges.registry.platformio.org/packages/dlloydev/library/QuickPID.svg)](https://registry.platformio.org/packages/libraries/dlloydev/QuickPID)
-
 QuickPID is an updated implementation of the Arduino PID library with additional features for PID control. By default, this implementation closely follows the method of processing the p,i,d terms as in the PID_v1 library except for using a more advanced anti-windup mode. Integral anti-windup can be based on conditionally using PI terms to provide some integral correction, prevent deep saturation and reduce overshoot. Anti-windup can also be based on clamping only, or it can be turned completely off. Also, the proportional term can be based on error, measurement, or both. The derivative term can be based on error or measurement.  PID controller modes include timer, which allows external timer or ISR timing control.
+
+```
+Note: You can use this library in esp-idf tool to program esp32 by cloning
+this repo into your components folder, then clean the build and rebuild.
+```
 
 ### Features
 
@@ -61,6 +65,14 @@ void QuickPID::Initialize();
 
 Does all the things that need to happen to ensure a bump-less transfer from manual to automatic mode.
 
+#### Reset
+
+```c++
+void QuickPID::Reset();
+```
+
+Clears `pTerm`, `iTerm`, `dTerm` and `outputSum` values.
+
 #### PID Query Functions
 
 These functions query the internal state of the PID.
@@ -94,6 +106,7 @@ void SetSampleTimeUs(uint32_t NewSampleTimeUs); // Set PID compute sample time, 
 void SetProportionalMode(pMode pMode);          // Set pTerm based on error (default), measurement, or both
 void SetDerivativeMode(dMode dMode);            // Set the dTerm, based error or measurement (default).
 void SetAntiWindupMode(iAwMode iAwMode);        // Set iTerm anti-windup to iAwCondition, iAwClamp or iAwOff
+void SetOutputSum(float sum);                   // sets the output summation value
 ```
 
 ### Autotuner

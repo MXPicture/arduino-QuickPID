@@ -1,5 +1,5 @@
 /**********************************************************************************
-   QuickPID Library for Arduino - Version 3.1.4
+   QuickPID Library for Arduino - Version 3.1.9
    by dlloydev https://github.com/Dlloydev/QuickPID
    Based on the Arduino PID_v1 Library. Licensed under the MIT License.
  **********************************************************************************/
@@ -55,7 +55,10 @@ QuickPID::QuickPID(float* Input, float* Output, float* Setpoint,
    Simplified constructor which uses defaults for remaining parameters.
  **********************************************************************************/
 QuickPID::QuickPID(float* Input, float* Output, float* Setpoint)
-  : QuickPID::QuickPID(Input, Output, Setpoint, dispKp, dispKi, dispKd,
+  : QuickPID::QuickPID(Input, Output, Setpoint,
+                       dispKp = 0,
+                       dispKi = 0,
+                       dispKd = 0,
                        pmode = pMode::pOnError,
                        dmode = dMode::dOnMeas,
                        iawmode = iAwMode::iAwCondition,
@@ -177,10 +180,20 @@ void QuickPID::SetOutputLimits(float Min, float Max) {
   controller is automatically initialized.
 ******************************************************************************/
 void QuickPID::SetMode(Control Mode) {
-  if (mode == Control::manual && Mode != Control::manual) { // just went from manual to automatic or timer
+  if (mode == Control::manual && Mode != Control::manual) { // just went from manual to automatic, timer or toggle
     QuickPID::Initialize();
   }
-  mode = Mode;
+  if (Mode == Control::toggle) {
+    mode = (mode == Control::manual) ? Control::automatic : Control::manual;
+  } else  mode = Mode;
+}
+void QuickPID::SetMode(uint8_t Mode) {
+  if (mode == Control::manual && Mode != 0) { // just went from manual to automatic or timer
+    QuickPID::Initialize();
+  }
+  if (Mode == 3) { // toggle
+    mode = (mode == Control::manual) ? Control::automatic : Control::manual;
+  } else  mode = (Control)Mode;
 }
 
 /* Initialize()****************************************************************
@@ -200,6 +213,9 @@ void QuickPID::Initialize() {
 void QuickPID::SetControllerDirection(Action Action) {
   action = Action;
 }
+void QuickPID::SetControllerDirection(uint8_t Direction) {
+  action = (Action)Direction;
+}
 
 /* SetProportionalMode(.)*****************************************************
   Sets the computation method for the proportional term, to compute based
@@ -208,6 +224,9 @@ void QuickPID::SetControllerDirection(Action Action) {
 void QuickPID::SetProportionalMode(pMode pMode) {
   pmode = pMode;
 }
+void QuickPID::SetProportionalMode(uint8_t Pmode) {
+  pmode = (pMode)Pmode;
+}
 
 /* SetDerivativeMode(.)*******************************************************
   Sets the computation method for the derivative term, to compute based
@@ -215,6 +234,9 @@ void QuickPID::SetProportionalMode(pMode pMode) {
 ******************************************************************************/
 void QuickPID::SetDerivativeMode(dMode dMode) {
   dmode = dMode;
+}
+void QuickPID::SetDerivativeMode(uint8_t Dmode) {
+  dmode = (dMode)Dmode;
 }
 
 /* SetAntiWindupMode(.)*******************************************************
@@ -226,6 +248,23 @@ void QuickPID::SetDerivativeMode(dMode dMode) {
 ******************************************************************************/
 void QuickPID::SetAntiWindupMode(iAwMode iAwMode) {
   iawmode = iAwMode;
+}
+void QuickPID::SetAntiWindupMode(uint8_t IawMode) {
+  iawmode = (iAwMode)IawMode;
+}
+
+void QuickPID::Reset() {
+  lastTime = micros() - sampleTimeUs;
+  lastInput = 0;
+  outputSum = 0;
+  pTerm = 0;
+  iTerm = 0;
+  dTerm = 0;
+}
+
+// sets the output summation value
+void QuickPID::SetOutputSum(float sum) {
+  outputSum = sum;
 }
 
 /* Status Functions************************************************************
@@ -248,6 +287,9 @@ float QuickPID::GetIterm() {
 }
 float QuickPID::GetDterm() {
   return dTerm;
+}
+float QuickPID::GetOutputSum() {
+  return outputSum;
 }
 uint8_t QuickPID::GetMode() {
   return static_cast<uint8_t>(mode);
