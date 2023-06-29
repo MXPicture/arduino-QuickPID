@@ -18,47 +18,48 @@ QuickPID::QuickPID() {}
    The parameters specified here are those for for which we can't set up
    reliable defaults, so we need to have the user set them.
  **********************************************************************************/
+
 QuickPID::QuickPID(float* Input, float* Output, float* Setpoint,
-    float Kp = 0, float Ki = 0, float Kd = 0,
-    pMode pMode = pMode::pOnError,
-    dMode dMode = dMode::dOnMeas,
-    iAwMode iAwMode = iAwMode::iAwCondition,
-    Action Action = Action::direct) {
+                   float Kp = 0, float Ki = 0, float Kd = 0,
+                   pMode pMode = pMode::pOnError,
+                   dMode dMode = dMode::dOnMeas,
+                   iAwMode iAwMode = iAwMode::iAwCondition,
+                   Action Action = Action::direct) {
 
-    myOutput = Output;
-    myInput = Input;
-    mySetpoint = Setpoint;
-    mode = Control::manual;
+  myOutput = Output;
+  myInput = Input;
+  mySetpoint = Setpoint;
+  mode = Control::manual;
 
-    QuickPID::SetOutputLimits(0, 255);  // same default as Arduino PWM limit
-    sampleTimeUs = 100000;              // 0.1 sec default
-    QuickPID::SetControllerDirection(Action);
-    QuickPID::SetTunings(Kp, Ki, Kd, pMode, dMode, iAwMode);
+  QuickPID::SetOutputLimits(0, 255);  // same default as Arduino PWM limit
+  sampleTimeUs = 100000;              // 0.1 sec default
+  QuickPID::SetControllerDirection(Action);
+  QuickPID::SetTunings(Kp, Ki, Kd, pMode, dMode, iAwMode);
 
-    lastTime = micros() - sampleTimeUs;
+  lastTime = micros() - sampleTimeUs;
 }
 
 /* Constructor *********************************************************************
    To allow using pOnError, dOnMeas and iAwCondition without explicitly saying so.
  **********************************************************************************/
 QuickPID::QuickPID(float* Input, float* Output, float* Setpoint,
-    float Kp, float Ki, float Kd, Action Action)
-    : QuickPID::QuickPID(Input, Output, Setpoint, Kp, Ki, Kd,
-        pmode = pMode::pOnError,
-        dmode = dMode::dOnMeas,
-        iawmode = iAwMode::iAwCondition,
-        action = Action) {
+                   float Kp, float Ki, float Kd, Action Action)
+  : QuickPID::QuickPID(Input, Output, Setpoint, Kp, Ki, Kd,
+                       pmode = pMode::pOnError,
+                       dmode = dMode::dOnMeas,
+                       iawmode = iAwMode::iAwCondition,
+                       action = Action) {
 }
 
 /* Constructor *********************************************************************
    Simplified constructor which uses defaults for remaining parameters.
  **********************************************************************************/
 QuickPID::QuickPID(float* Input, float* Output, float* Setpoint)
-    : QuickPID::QuickPID(Input, Output, Setpoint, dispKp, dispKi, dispKd,
-        pmode = pMode::pOnError,
-        dmode = dMode::dOnMeas,
-        iawmode = iAwMode::iAwCondition,
-        action = Action::direct) {
+  : QuickPID::QuickPID(Input, Output, Setpoint, dispKp, dispKi, dispKd,
+                       pmode = pMode::pOnError,
+                       dmode = dMode::dOnMeas,
+                       iawmode = iAwMode::iAwCondition,
+                       action = Action::direct) {
 }
 
 /* Compute() ***********************************************************************
@@ -67,53 +68,53 @@ QuickPID::QuickPID(float* Input, float* Output, float* Setpoint)
    when the output is computed, false when nothing has been done.
  **********************************************************************************/
 bool QuickPID::Compute() {
-    if (mode == Control::manual) return false;
-    uint32_t now = micros();
-    uint32_t timeChange = (now - lastTime);
-    if (mode == Control::timer || timeChange >= sampleTimeUs) {
+  if (mode == Control::manual) return false;
+  uint32_t now = micros();
+  uint32_t timeChange = (now - lastTime);
+  if (mode == Control::timer || timeChange >= sampleTimeUs) {
 
-        float input = *myInput;
-        float dInput = input - lastInput;
-        if (action == Action::reverse) dInput = -dInput;
+    float input = *myInput;
+    float dInput = input - lastInput;
+    if (action == Action::reverse) dInput = -dInput;
 
-        error = *mySetpoint - input;
-        if (action == Action::reverse) error = -error;
-        float dError = error - lastError;
+    error = *mySetpoint - input;
+    if (action == Action::reverse) error = -error;
+    float dError = error - lastError;
 
-        float peTerm = kp * error;
-        float pmTerm = kp * dInput;
-        if (pmode == pMode::pOnError) pmTerm = 0;
-        else if (pmode == pMode::pOnMeas) peTerm = 0;
-        else { //pOnErrorMeas
-            peTerm *= 0.5f;
-            pmTerm *= 0.5f;
-        }
-        pTerm = peTerm - pmTerm; // used by GetDterm()
-        iTerm = ki * error;
-        if (dmode == dMode::dOnError) dTerm = kd * dError;
-        else dTerm = -kd * dInput; // dOnMeas
-
-        //condition anti-windup (default)
-        if (iawmode == iAwMode::iAwCondition) {
-            bool aw = false;
-            float iTermOut = (peTerm - pmTerm) + ki * (iTerm + error);
-            if (iTermOut > outMax && dError > 0) aw = true;
-            else if (iTermOut < outMin && dError < 0) aw = true;
-            if (aw && ki) iTerm = constrain(iTermOut, -outMax, outMax);
-        }
-
-        // by default, compute output as per PID_v1
-        outputSum += iTerm;                                                 // include integral amount
-        if (iawmode == iAwMode::iAwOff) outputSum -= pmTerm;                // include pmTerm (no anti-windup)
-        else outputSum = constrain(outputSum - pmTerm, outMin, outMax);     // include pmTerm and clamp
-        *myOutput = constrain(outputSum + peTerm + dTerm, outMin, outMax);  // include dTerm, clamp and drive output
-
-        lastError = error;
-        lastInput = input;
-        lastTime = now;
-        return true;
+    float peTerm = kp * error;
+    float pmTerm = kp * dInput;
+    if (pmode == pMode::pOnError) pmTerm = 0;
+    else if (pmode == pMode::pOnMeas) peTerm = 0;
+    else { //pOnErrorMeas
+      peTerm *= 0.5f;
+      pmTerm *= 0.5f;
     }
-    else return false;
+    pTerm = peTerm - pmTerm; // used by GetDterm()
+    iTerm =  ki  * error;
+    if (dmode == dMode::dOnError) dTerm = kd * dError;
+    else dTerm = -kd * dInput; // dOnMeas
+
+    //condition anti-windup (default)
+    if (iawmode == iAwMode::iAwCondition) {
+      bool aw = false;
+      float iTermOut = (peTerm - pmTerm) + ki * (iTerm + error);
+      if (iTermOut > outMax && dError > 0) aw = true;
+      else if (iTermOut < outMin && dError < 0) aw = true;
+      if (aw && ki) iTerm = constrain(iTermOut, -outMax, outMax);
+    }
+
+    // by default, compute output as per PID_v1
+    outputSum += iTerm;                                                 // include integral amount
+    if (iawmode == iAwMode::iAwOff) outputSum -= pmTerm;                // include pmTerm (no anti-windup)
+    else outputSum = constrain(outputSum - pmTerm, outMin, outMax);     // include pmTerm and clamp
+    *myOutput = constrain(outputSum + peTerm + dTerm, outMin, outMax);  // include dTerm, clamp and drive output
+
+    lastError = error;
+    lastInput = input;
+    lastTime = now;
+    return true;
+  }
+  else return false;
 }
 
 /* SetTunings(....)************************************************************
@@ -122,37 +123,37 @@ bool QuickPID::Compute() {
   be adjusted on the fly during normal operation.
 ******************************************************************************/
 void QuickPID::SetTunings(float Kp, float Ki, float Kd,
-    pMode pMode = pMode::pOnError,
-    dMode dMode = dMode::dOnMeas,
-    iAwMode iAwMode = iAwMode::iAwCondition) {
+                          pMode pMode = pMode::pOnError,
+                          dMode dMode = dMode::dOnMeas,
+                          iAwMode iAwMode = iAwMode::iAwCondition) {
 
-    if (Kp < 0 || Ki < 0 || Kd < 0) return;
-    if (Ki == 0) outputSum = 0;
-    pmode = pMode; dmode = dMode; iawmode = iAwMode;
-    dispKp = Kp; dispKi = Ki; dispKd = Kd;
-    float SampleTimeSec = (float)sampleTimeUs / 1000000;
-    kp = Kp;
-    ki = Ki * SampleTimeSec;
-    kd = Kd / SampleTimeSec;
+  if (Kp < 0 || Ki < 0 || Kd < 0) return;
+  if (Ki == 0) outputSum = 0;
+  pmode = pMode; dmode = dMode; iawmode = iAwMode;
+  dispKp = Kp; dispKi = Ki; dispKd = Kd;
+  float SampleTimeSec = (float)sampleTimeUs / 1000000;
+  kp = Kp;
+  ki = Ki * SampleTimeSec;
+  kd = Kd / SampleTimeSec;
 }
 
 /* SetTunings(...)************************************************************
   Set Tunings using the last remembered pMode, dMode and iAwMode settings.
 ******************************************************************************/
 void QuickPID::SetTunings(float Kp, float Ki, float Kd) {
-    SetTunings(Kp, Ki, Kd, pmode, dmode, iawmode);
+  SetTunings(Kp, Ki, Kd, pmode, dmode, iawmode);
 }
 
 /* SetSampleTime(.)***********************************************************
   Sets the period, in microseconds, at which the calculation is performed.
 ******************************************************************************/
 void QuickPID::SetSampleTimeUs(uint32_t NewSampleTimeUs) {
-    if (NewSampleTimeUs > 0) {
-        float ratio = (float)NewSampleTimeUs / (float)sampleTimeUs;
-        ki *= ratio;
-        kd /= ratio;
-        sampleTimeUs = NewSampleTimeUs;
-    }
+  if (NewSampleTimeUs > 0) {
+    float ratio  = (float)NewSampleTimeUs / (float)sampleTimeUs;
+    ki *= ratio;
+    kd /= ratio;
+    sampleTimeUs = NewSampleTimeUs;
+  }
 }
 
 /* SetOutputLimits(..)********************************************************
@@ -160,14 +161,14 @@ void QuickPID::SetSampleTimeUs(uint32_t NewSampleTimeUs) {
   By default this range is 0-255, the Arduino PWM range.
 ******************************************************************************/
 void QuickPID::SetOutputLimits(float Min, float Max) {
-    if (Min >= Max) return;
-    outMin = Min;
-    outMax = Max;
+  if (Min >= Max) return;
+  outMin = Min;
+  outMax = Max;
 
-    if (mode != Control::manual) {
-        *myOutput = constrain(*myOutput, outMin, outMax);
-        outputSum = constrain(outputSum, outMin, outMax);
-    }
+  if (mode != Control::manual) {
+    *myOutput = constrain(*myOutput, outMin, outMax);
+    outputSum = constrain(outputSum, outMin, outMax);
+  }
 }
 
 /* SetMode(.)*****************************************************************
@@ -176,10 +177,10 @@ void QuickPID::SetOutputLimits(float Min, float Max) {
   controller is automatically initialized.
 ******************************************************************************/
 void QuickPID::SetMode(Control Mode) {
-    if (mode == Control::manual && Mode != Control::manual) { // just went from manual to automatic or timer
-        QuickPID::Initialize();
-    }
-    mode = Mode;
+  if (mode == Control::manual && Mode != Control::manual) { // just went from manual to automatic or timer
+    QuickPID::Initialize();
+  }
+  mode = Mode;
 }
 
 /* Initialize()****************************************************************
@@ -187,9 +188,9 @@ void QuickPID::SetMode(Control Mode) {
   from manual to automatic mode.
 ******************************************************************************/
 void QuickPID::Initialize() {
-    outputSum = *myOutput;
-    lastInput = *myInput;
-    outputSum = constrain(outputSum, outMin, outMax);
+  outputSum = *myOutput;
+  lastInput = *myInput;
+  outputSum = constrain(outputSum, outMin, outMax);
 }
 
 /* SetControllerDirection(.)**************************************************
@@ -197,7 +198,7 @@ void QuickPID::Initialize() {
   to +Input) or a reverse acting process(+Output leads to -Input).
 ******************************************************************************/
 void QuickPID::SetControllerDirection(Action Action) {
-    action = Action;
+  action = Action;
 }
 
 /* SetProportionalMode(.)*****************************************************
@@ -205,7 +206,7 @@ void QuickPID::SetControllerDirection(Action Action) {
   either on error (default), on measurement, or the average of both.
 ******************************************************************************/
 void QuickPID::SetProportionalMode(pMode pMode) {
-    pmode = pMode;
+  pmode = pMode;
 }
 
 /* SetDerivativeMode(.)*******************************************************
@@ -213,7 +214,7 @@ void QuickPID::SetProportionalMode(pMode pMode) {
   either on error or on measurement (default).
 ******************************************************************************/
 void QuickPID::SetDerivativeMode(dMode dMode) {
-    dmode = dMode;
+  dmode = dMode;
 }
 
 /* SetAntiWindupMode(.)*******************************************************
@@ -224,42 +225,42 @@ void QuickPID::SetDerivativeMode(dMode dMode) {
   Option iAwOff disables anti-windup altogether.
 ******************************************************************************/
 void QuickPID::SetAntiWindupMode(iAwMode iAwMode) {
-    iawmode = iAwMode;
+  iawmode = iAwMode;
 }
 
 /* Status Functions************************************************************
   These functions query the internal state of the PID.
 ******************************************************************************/
 float QuickPID::GetKp() {
-    return dispKp;
+  return dispKp;
 }
 float QuickPID::GetKi() {
-    return dispKi;
+  return dispKi;
 }
 float QuickPID::GetKd() {
-    return dispKd;
+  return dispKd;
 }
 float QuickPID::GetPterm() {
-    return pTerm;
+  return pTerm;
 }
 float QuickPID::GetIterm() {
-    return iTerm;
+  return iTerm;
 }
 float QuickPID::GetDterm() {
-    return dTerm;
+  return dTerm;
 }
 uint8_t QuickPID::GetMode() {
-    return static_cast<uint8_t>(mode);
+  return static_cast<uint8_t>(mode);
 }
 uint8_t QuickPID::GetDirection() {
-    return static_cast<uint8_t>(action);
+  return static_cast<uint8_t>(action);
 }
 uint8_t QuickPID::GetPmode() {
-    return static_cast<uint8_t>(pmode);
+  return static_cast<uint8_t>(pmode);
 }
 uint8_t QuickPID::GetDmode() {
-    return static_cast<uint8_t>(dmode);
+  return static_cast<uint8_t>(dmode);
 }
 uint8_t QuickPID::GetAwMode() {
-    return static_cast<uint8_t>(iawmode);
+  return static_cast<uint8_t>(iawmode);
 }
